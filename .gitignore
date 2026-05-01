@@ -1,0 +1,36 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment files
+.env/*
+env_v.env
+config.env
+
+# Cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Large files and databases
+*.whl
+*.rdb
+db.sqlite3
+
+# Celery
+celerybeat-schedule.bak
+celerybeat-schedule.dat
+celerybeat-schedule.dir
+
+# Django stuff
+staticfiles/
+logs/
+
+# IDEs
+.idea/
+.vscode/
