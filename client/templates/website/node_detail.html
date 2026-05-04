@@ -304,7 +304,7 @@
                                         </div>
                                         <div class="card-body">
                                             <p><strong>{% trans "Node Name:" %}</strong> <span id="nodeName">{{ node.name }}</span></p>
-                                            <p><strong>{% trans "ID Parcelle:" %}</strong> <span id="nodeReference">{{ node.ref }}</span></p>
+                                            <p><strong>{% trans "ID Parcelle:" %}</strong> <span id="nodeReference">{{ node.reference }}</span></p>
                                             <p><strong>{% trans "Position:" %}</strong> <span id="nodePosition">{{ node.latitude }}, {{ node.longitude }}</span></p>
                                             <p><strong>{% trans "Sensors:" %}</strong> <span id="nodeSensors">{{ node.sensors }}</span></p>
                                             <p><strong>{% trans "RSSI:" %}</strong> <span id="nodeRSSI">{{ node.RSSI }}</span></p>
@@ -373,37 +373,45 @@
 
 <script>
      document.addEventListener('DOMContentLoaded', function() {
-        const nodeData = loadNodeDataFromLocalStorage();
+        // We capture the server-rendered node reference to filter incoming WebSocket messages
+        const currentNodeRef = "{{ node.reference }}";
 
-        // Initialiser les éléments avec les données sauvegardées
-        document.getElementById('nodeReference').innerText  = nodeData.device_id || 'N/A';
-        document.getElementById('nodeRSSI').innerText       = nodeData.rssi || 'N/A';
-        
-        // Ajouter les valeurs de température, humidité, pression et gaz
-        document.getElementById('temperature').innerText    = nodeData.temperature  || 'N/A';
-        document.getElementById('humidity').innerText       = nodeData.humidity  || 'N/A';
-        document.getElementById('pressure').innerText       = nodeData.pressure || 'N/A';
-        document.getElementById('wind').innerText           = nodeData.wind_speed  || 'N/A';
-        document.getElementById('gas').innerText            = nodeData.gaz  || 'N/A';
+        const nodeData = loadNodeDataFromLocalStorage(currentNodeRef);
 
-        const socket = new WebSocket("ws://127.0.0.1:8000/ws/data/");
+        // Initialiser les éléments avec les données sauvegardées (only if we have data for this specific node)
+        if (nodeData.device_id) {
+            // document.getElementById('nodeReference').innerText  = nodeData.device_id || 'N/A'; // Do NOT overwrite the real reference
+            document.getElementById('nodeRSSI').innerText       = nodeData.rssi || 'N/A';
+            
+            // Ajouter les valeurs de température, humidité, pression et gaz
+            document.getElementById('temperature').innerText    = nodeData.temperature  || 'N/A';
+            document.getElementById('humidity').innerText       = nodeData.humidity  || 'N/A';
+            document.getElementById('pressure').innerText       = nodeData.pressure || 'N/A';
+            document.getElementById('wind').innerText           = nodeData.wind_speed  || 'N/A';
+            document.getElementById('gas').innerText            = nodeData.gaz  || 'N/A';
+        }
+
+        const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const socket = new WebSocket(protocol + window.location.host + "/ws/data/");
 
         socket.onmessage = function(event) {
             const data = JSON.parse(event.data);
             const message = data.message;
             const nodeData = data.data;
 
-            document.getElementById('nodeReference').innerText  = nodeData.device_id || 'N/A';
-            document.getElementById('nodeRSSI').innerText       = nodeData.rssi || 'N/A';
-            
-            // Mettre à jour les valeurs de température, humidité, pression et gaz
-            document.getElementById('temperature').innerText    = nodeData.temperature  || 'N/A';
-            document.getElementById('humidity').innerText       = nodeData.humidity  || 'N/A';
-            document.getElementById('pressure').innerText       = nodeData.pressure  || 'N/A';
-            document.getElementById('gas').innerText            = nodeData.gaz   || 'N/A';
-            document.getElementById('wind').innerText           = nodeData.wind_speed  || 'N/A';
+            // Only update the UI if the incoming data matches the current node!
+            if (nodeData.device_id && currentNodeRef && nodeData.device_id.toLowerCase() === currentNodeRef.toLowerCase()) {
+                document.getElementById('nodeRSSI').innerText       = nodeData.rssi || 'N/A';
+                
+                // Mettre à jour les valeurs de température, humidité, pression et gaz
+                document.getElementById('temperature').innerText    = nodeData.temperature  || 'N/A';
+                document.getElementById('humidity').innerText       = nodeData.humidity  || 'N/A';
+                document.getElementById('pressure').innerText       = nodeData.pressure  || 'N/A';
+                document.getElementById('gas').innerText            = nodeData.gaz   || 'N/A';
+                document.getElementById('wind').innerText           = nodeData.wind_speed  || 'N/A';
 
-            saveNodeDataToLocalStorage(nodeData);
+                saveNodeDataToLocalStorage(currentNodeRef, nodeData);
+            }
         };
 
         socket.onopen = function(event) {
@@ -418,12 +426,12 @@
             console.error("WebSocket error: ", error);
         };
 
-        function saveNodeDataToLocalStorage(data) {
-            localStorage.setItem('nodeData', JSON.stringify(data));
+        function saveNodeDataToLocalStorage(ref, data) {
+            localStorage.setItem('nodeData_' + ref, JSON.stringify(data));
         }
 
-        function loadNodeDataFromLocalStorage() {
-            const data = localStorage.getItem('nodeData');
+        function loadNodeDataFromLocalStorage(ref) {
+            const data = localStorage.getItem('nodeData_' + ref);
             return data ? JSON.parse(data) : {};
         }
     });

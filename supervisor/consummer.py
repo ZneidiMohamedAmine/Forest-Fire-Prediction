@@ -29,14 +29,20 @@ class MQTTConsumer(AsyncWebsocketConsumer):
     def on_message(self, client, userdata, message):
         try:
             parsed = json.loads(message.payload)
+            device_id = parsed["end_device_ids"]["device_id"]
             up = parsed.get("uplink_message", {})
             dp = up.get("decoded_payload", {})
+            
+            print(f"--- MQTT Message Received ---")
+            print(f"Device ID: {device_id}")
+            print(f"Decoded Payload: {dp}")
+
             data = {
-                "device_id": parsed["end_device_ids"]["device_id"],
+                "device_id": device_id,
                 "temperature": dp.get("temperature"),
                 "humidity": dp.get("humidity"),
                 "gaz": dp.get("gaz"),
-                "pressure": dp.get("pressur"),
+                "pressure": dp.get("pressure") or dp.get("pressur"), # Handle both spellings
                 "rain": dp.get("rain", 0),
                 "rssi": (up.get("rx_metadata") or [{}])[0].get("rssi"),
             }

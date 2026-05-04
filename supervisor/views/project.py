@@ -527,3 +527,13 @@ def update_parcels_nodes(request):
         return JsonResponse({'message': 'Parcels and nodes updated successfully.'}, status=200)
 
     return JsonResponse({'error': 'Invalid request method.'}, status=400)
+
+
+@login_required(login_url='supervisor_login')
+@supervisor_required
+def delete_node(request, node_id):
+    if request.method == 'POST':
+        node = get_object_or_404(Node, pk=node_id)
+        node.delete()
+        return JsonResponse({'success': True, 'message': 'Node deleted successfully.'})
+    return JsonResponse({'error': 'Invalid request method.'}, status=400)

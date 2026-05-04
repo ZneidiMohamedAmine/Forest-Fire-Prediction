@@ -187,7 +187,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         const poly = L.polygon(p.coordinates, { color: 'blue', weight: 2, fillOpacity: 0.3 }).addTo(displayMap);
                         allParcelleLayers.push({ id: p.id, getBounds: () => poly.getBounds() });
                         bounds.push(...p.coordinates);
-                        p.nodes.forEach(n => L.marker([n.latitude, n.longitude]).bindPopup(`<b>Node:</b> ${n.name}`).addTo(displayMap));
+                        p.nodes.forEach(n => {
+                            const popupHTML = `
+                                <div class="node-popup">
+                                    <b>Node:</b> ${n.name}<br>
+                                    <b>Ref:</b> ${n.ref}<br>
+                                </div>
+                            `;
+                            L.marker([n.latitude, n.longitude]).bindPopup(popupHTML).addTo(displayMap);
+                        });
                     });
                     
                     // Fetch and display Cameras
@@ -472,7 +480,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         customDisplayLayerGroup.addLayer(poly);
                         bounds.push(...p.coordinates);
                         p.nodes.forEach(n => {
-                            const marker = L.marker([n.latitude, n.longitude]);
+                            const popupHTML = `
+                                <div class="node-popup">
+                                    <b>Node:</b> ${n.name}<br>
+                                    <b>Ref:</b> ${n.ref}<br>
+                                </div>
+                            `;
+                            const marker = L.marker([n.latitude, n.longitude]).bindPopup(popupHTML);
                             customDisplayLayerGroup.addLayer(marker);
                         });
                     });
@@ -496,6 +510,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <b>Name:</b> ${c.name}<br>
                                             <b>Status:</b> ${c.is_active ? 'Active' : 'Inactive'}<br>
                                             ${alertContent}
+                                            <hr class="my-2">
+                                            <button class="btn btn-sm btn-outline-danger w-100 delete-asset-btn" data-type="camera" data-id="${c.id}" data-name="${c.name}">
+                                                <i class="fas fa-trash-alt me-1"></i> Delete Camera
+                                            </button>
                                         </div>
                                     `;
                                     const cMarker = L.marker([c.latitude, c.longitude], { icon: c.has_alert ? fireIcon : cameraIcon })
@@ -524,7 +542,15 @@ document.addEventListener('DOMContentLoaded', function() {
                             data.parcelles.forEach(p => {
                                 L.polygon(p.coordinates, { color: 'blue', weight: 2, fillOpacity: 0.5 }).addTo(map);
                                 bounds.push(...p.coordinates);
-                            p.nodes.forEach(n => L.marker([n.latitude, n.longitude]).bindPopup(`<b>Node:</b> ${n.name}`).addTo(map));
+                            p.nodes.forEach(n => {
+                                const popupHTML = `
+                                    <div class="node-popup">
+                                        <b>Node:</b> ${n.name}<br>
+                                        <b>Ref:</b> ${n.ref}<br>
+                                    </div>
+                                `;
+                                L.marker([n.latitude, n.longitude]).bindPopup(popupHTML).addTo(map);
+                            });
                             });
                             // Fixed URL to /camera_management/list/
                             fetch(`/camera_management/list/?project_id=${projectId}`).then(res => res.json()).then(cData => {
@@ -567,5 +593,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 new bootstrap.Modal(document.getElementById('customParcelsNodesModal')).show();
             });
         });
+
     };
 });

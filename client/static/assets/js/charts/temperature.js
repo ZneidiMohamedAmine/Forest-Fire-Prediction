@@ -119,7 +119,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const data = JSON.parse(event.data);
         if (data.message === 'MQTT data received') {
             const newData = data.data;
-            const newLabel = new Date(newData.timestamp);
+            
+            // Check if this data is for the current node being viewed
+            const expectedDeviceId = document.getElementById('nodeReference')?.innerText;
+            if (expectedDeviceId && newData.device_id !== expectedDeviceId) {
+                return; // Ignore data for other nodes
+            }
+
+            const newLabel = new Date(newData.timestamp || newData.published_date);
             const newTemperature = newData.temperature;
 
             if (!isNaN(newLabel.getTime())) {

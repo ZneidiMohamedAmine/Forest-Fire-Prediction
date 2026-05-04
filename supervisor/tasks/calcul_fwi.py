@@ -7,10 +7,14 @@ from supervisor.tasks.Pediction_ml import predict_single_fwi
 @shared_task(name="calculate_fwi_task")
 def calculate_fwi_task(d):
     device_id = d["device_id"]
-    nodes = Node.objects.filter(reference=device_id)
+    # Use iexact to avoid case-sensitivity issues with PostGIS
+    nodes = Node.objects.filter(reference__iexact=device_id)
+    
     if not nodes.exists(): 
+        print(f"!!! Error: No node found with reference '{device_id}' (Case-insensitive check)")
         return
 
+    print(f">>> Processing data for {nodes.count()} node(s) with reference '{device_id}'")
     fwi = FWI()
     wind = fwi.calculate_wind(d["temperature"], d["humidity"], d["pressure"])
     
@@ -31,7 +35,7 @@ def calculate_fwi_task(d):
         row = Data.objects.create(
             temperature=d["temperature"],
             humidity=d["humidity"],
-            pressur=d["pressure"],
+            pressur=d.get("pressure"), # Map from payload 'pressure' to model 'pressur'
             gaz=d["gaz"],
             wind=wind,
             ffmc=ffmc,

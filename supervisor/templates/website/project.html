@@ -57,15 +57,82 @@
         // Project Detail Modal Handler
         document.querySelectorAll('.showProjectDetail').forEach(btn => {
             btn.addEventListener('click', function() {
+                const projectId = this.closest('.d-flex.gap-2')?.querySelector('.deleteProjectBtn')?.getAttribute('data-project-id');
                 document.getElementById('detailProjectName').innerText = this.getAttribute('data-project-name');
                 document.getElementById('detailProjectDesc').innerText = this.getAttribute('data-project-desc');
                 document.getElementById('detailAgentName').innerText = this.getAttribute('data-agent-name');
                 document.getElementById('detailNodeCount').innerText = this.getAttribute('data-node-count');
                 document.getElementById('detailCameraCount').innerText = this.getAttribute('data-camera-count');
                 
+                // Fetch and render assets
+                if (projectId) {
+                    fetchAssetsForDetail(projectId);
+                }
+                
                 new bootstrap.Modal(document.getElementById('projectDetailModal')).show();
             });
         });
+
+        function fetchAssetsForDetail(projectId) {
+            document.getElementById('projectDetailModal').setAttribute('data-current-pid', projectId);
+            const nodesCont = document.getElementById('nodesListContainer');
+            const camsCont = document.getElementById('camerasListContainer');
+            
+            nodesCont.innerHTML = '<div class="text-center p-3 text-muted">Loading nodes...</div>';
+            camsCont.innerHTML = '<div class="text-center p-3 text-muted">Loading cameras...</div>';
+
+            // Fetch Nodes
+            fetch(`/dashboard_super/get_parcelles_with_nodes_for_project/?project_id=${projectId}`)
+                .then(r => r.json())
+                .then(data => {
+                    nodesCont.innerHTML = '';
+                    let totalNodes = 0;
+                    data.parcelles.forEach(p => {
+                        p.nodes.forEach(n => {
+                            totalNodes++;
+                            nodesCont.innerHTML += `
+                                <div class="list-group-item d-flex justify-content-between align-items-center p-3">
+                                    <div>
+                                        <h6 class="mb-0 fw-bold">${n.name}</h6>
+                                        <small class="text-muted">Ref: ${n.ref} | Plot: ${p.name}</small>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-danger delete-asset-btn" data-type="node" data-id="${n.id}" data-name="${n.name}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            `;
+                        });
+                    });
+                    if (totalNodes === 0) nodesCont.innerHTML = '<div class="p-4 text-center text-muted">No nodes found.</div>';
+                    document.getElementById('detailNodeCount').innerText = totalNodes;
+                });
+
+            // Fetch Cameras
+            fetch(`/camera_management/list/?project_id=${projectId}`)
+                .then(r => r.json())
+                .then(data => {
+                    camsCont.innerHTML = '';
+                    if (data.cameras && data.cameras.length > 0) {
+                        data.cameras.forEach(c => {
+                            camsCont.innerHTML += `
+                                <div class="list-group-item d-flex justify-content-between align-items-center p-3">
+                                    <div>
+                                        <h6 class="mb-0 fw-bold">${c.name}</h6>
+                                        <small class="text-muted">ID: ${c.camera_id} | Status: ${c.is_active ? 'Active' : 'Inactive'}</small>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-danger delete-asset-btn" data-type="camera" data-id="${c.id}" data-name="${c.name}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            `;
+                        });
+                        document.getElementById('detailCameraCount').innerText = data.cameras.length;
+                    } else {
+                        camsCont.innerHTML = '<div class="p-4 text-center text-muted">No cameras found.</div>';
+                        document.getElementById('detailCameraCount').innerText = 0;
+                    }
+                });
+        }
 
         if ("{{ show_modal }}" == "True") {
             var listModal = new bootstrap.Modal(document.getElementById('projectList'));
@@ -106,6 +173,57 @@
                         window.location.href = `/dashboard_super/delete_project/${pid}`;
                     }
                 });
+            });
+        });
+
+        // --- GLOBAL ASSET DELETION HANDLER ---
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.delete-asset-btn');
+            if (!btn) return;
+
+            const type = btn.getAttribute('data-type');
+            const id = btn.getAttribute('data-id');
+            const name = btn.getAttribute('data-name');
+            const url = type === 'node' ? `/dashboard_super/delete_node/${id}/` : `/dashboard_super/delete_camera/${id}/`;
+
+            Swal.fire({
+                title: 'Are you sure?',
+                text: `You are about to delete ${type} "${name}". This action cannot be undone.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel',
+                background: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? '#1e293b' : '#fff',
+                color: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? '#f1f5f9' : '#1e293b'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                        }
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire('Deleted!', data.message, 'success');
+                            // Refresh the asset lists in the modal if it's open
+                            const detailModal = document.getElementById('projectDetailModal');
+                            if (detailModal && detailModal.classList.contains('show')) {
+                                const currentPid = detailModal.getAttribute('data-current-pid');
+                                if (currentPid) fetchAssetsForDetail(currentPid);
+                            }
+                        } else {
+                            Swal.fire('Error', data.error || 'Failed to delete asset.', 'error');
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Delete error:", err);
+                        Swal.fire('Error', 'A server error occurred.', 'error');
+                    });
+                }
             });
         });
         // Fix for "ghost" backdrops when multiple modals are used
@@ -266,6 +384,30 @@
                     <div class="p-3 rounded-4 bg-light border mb-4">
                         <label class="small text-uppercase fw-bold text-muted d-block mb-2">{% trans "Description" %}</label>
                         <p id="detailProjectDesc" class="text-muted mb-0 lh-base" style="min-height: 80px;"></p>
+                    </div>
+
+                    <!-- NEW: Asset List Section -->
+                    <div class="asset-lists-container mt-4">
+                        <ul class="nav nav-pills nav-justified mb-3" id="assetTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="nodes-tab" data-bs-toggle="tab" data-bs-target="#nodes-list-pane" type="button" role="tab">{% trans "Nodes List" %}</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="cameras-tab" data-bs-toggle="tab" data-bs-target="#cameras-list-pane" type="button" role="tab">{% trans "Cameras List" %}</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content" id="assetTabContent">
+                            <div class="tab-pane fade show active" id="nodes-list-pane" role="tabpanel">
+                                <div id="nodesListContainer" class="list-group list-group-flush border rounded-4 overflow-auto" style="max-height: 300px;">
+                                    <div class="text-center p-3 text-muted">{% trans "Loading nodes..." %}</div>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="cameras-list-pane" role="tabpanel">
+                                <div id="camerasListContainer" class="list-group list-group-flush border rounded-4 overflow-auto" style="max-height: 300px;">
+                                    <div class="text-center p-3 text-muted">{% trans "Loading cameras..." %}</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="text-center mt-3">

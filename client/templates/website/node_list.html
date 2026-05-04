@@ -232,11 +232,11 @@
                                         </div>
                                         <h5 class="card-title">Node-{{ node.name }}</h5>
                                         <p>ID Parcelle:</p>
-                                        <p>{{ node.ref }}</p>
+                                        <p>{{ node.reference }}</p>
                                         <p>Node ID: {{ node.id }}</p>
                                         <div class="d-flex justify-content-between">
                                             {% localize off %}
-                                            <button class="btn btn-success custom-btn locate-btn" data-lat="{{ node.latitude }}" data-lng="{{ node.longitude }}" data-name="{{ node.name }}" data-ref="{{ node.ref }}">{% trans "Locate" %}</button>
+                                            <button class="btn btn-success custom-btn locate-btn" data-lat="{{ node.latitude }}" data-lng="{{ node.longitude }}" data-name="{{ node.name }}" data-ref="{{ node.reference }}">{% trans "Locate" %}</button>
                                             {% endlocalize %}
                                             <a href="{% url 'node_detail' project_id=project.polygon_id node_id=node.id %}">
                                                 <button class="btn btn-success custom-btn ms-2">{% trans "Details" %}</button>

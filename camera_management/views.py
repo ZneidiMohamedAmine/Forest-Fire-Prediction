@@ -163,3 +163,13 @@ def delete_detection(request, detection_id):
         detection.delete()
         return JsonResponse({'success': True, 'message': 'Image deleted successfully'})
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+@login_required(login_url='supervisor_login')
+@supervisor_required
+def delete_camera(request, camera_id):
+    if request.method == 'POST':
+        camera = get_object_or_404(Camera, pk=camera_id)
+        camera.delete()
+        return JsonResponse({'success': True, 'message': 'Camera deleted successfully.'})
+    return JsonResponse({'error': 'Invalid request method.'}, status=400)

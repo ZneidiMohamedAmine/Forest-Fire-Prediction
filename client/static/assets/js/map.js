@@ -176,7 +176,8 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       // --- WebSocket temps réel ---
-      const socket = new WebSocket('ws://127.0.0.1:8000/ws/data/')
+      const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+      const socket = new WebSocket(protocol + window.location.host + '/ws/data/')
 
       socket.onmessage = function (event) {
         const wsData = JSON.parse(event.data)
@@ -187,7 +188,14 @@ document.addEventListener('DOMContentLoaded', function () {
           saveNodeDataToLocalStorage(nodeData.device_id, nodeData)
 
           // Mise à jour marqueurs
-          const nodeMarkers = markers[nodeData.device_id]
+          // Try exact match first, then case-insensitive
+          let nodeMarkers = markers[nodeData.device_id]
+          if (!nodeMarkers && nodeData.device_id) {
+              const lowerId = nodeData.device_id.toLowerCase();
+              const foundKey = Object.keys(markers).find(k => k.toLowerCase() === lowerId);
+              if (foundKey) nodeMarkers = markers[foundKey];
+          }
+
           if (nodeMarkers) {
             nodeMarkers.forEach((marker) => {
               const updatedContent = generatePopupContent(
@@ -200,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
           // Mise à jour parcelle
           const parcelle = data.parcelles.find((p) =>
-            p.nodes.some((node) => node.ref === nodeData.device_id),
+            p.nodes.some((node) => node.ref && nodeData.device_id && node.ref.toLowerCase() === nodeData.device_id.toLowerCase()),
           )
 
           if (parcelle) {
