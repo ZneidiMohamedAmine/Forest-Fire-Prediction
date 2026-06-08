@@ -49,6 +49,8 @@ def predict_single_fwi(data_id):
             "dmc": data.dmc,
             "fwi": data.fwi,
             "fwi_predit": data.fwi_predit,
+            "rssi": data.node.RSSI,
+            "battery": data.node.Battery_value,
             "published_date": data.published_date.isoformat()
         }
     })

@@ -111,7 +111,8 @@ document.addEventListener('DOMContentLoaded', function() {
     })
     .catch(error => console.error('Error fetching gas data:', error));
 
-    const socket = new WebSocket("ws://127.0.0.1:8000/ws/data/");
+    const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const socket = new WebSocket(protocol + window.location.host + "/ws/data/");
 
     socket.onmessage = function(event) {
         const data = JSON.parse(event.data);

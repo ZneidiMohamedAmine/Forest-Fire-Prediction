@@ -19,6 +19,13 @@ def calculate_fwi_task(d):
     wind = fwi.calculate_wind(d["temperature"], d["humidity"], d["pressure"])
     
     for node in nodes:
+        # Update node real-time fields
+        if d.get("rssi") is not None:
+            node.RSSI = d["rssi"]
+        if d.get("battery") is not None:
+            node.Battery_value = d["battery"]
+        node.save()
+
         last = Data.objects.filter(node=node).order_by('-published_date').first()
         ffmc_prev = last.ffmc if last else 85
         dmc_prev  = last.dmc  if last else 6

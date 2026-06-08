@@ -24,28 +24,18 @@ def node_detail(request, project_id, node_id):
 
     data_entries = Data.objects.filter(node=node, published_date__range=(start_of_period, now))
 
-    #* Créer un dictionnaire pour stocker les valeurs de température, humidité et gaz par intervalles de 1 heure
-    temperature_dict = {}
-    humidity_dict = {}
-    gas_dict = {}
-    
-    for entry in data_entries:
-        interval = entry.published_date.replace(minute=0, second=0, microsecond=0)  # Truncating to the nearest hour
-        if interval not in temperature_dict:
-            temperature_dict[interval] = []
-        if interval not in humidity_dict:
-            humidity_dict[interval] = []
-        if interval not in gas_dict:
-            gas_dict[interval] = []
-        
-        temperature_dict[interval].append(entry.temperature)
-        humidity_dict[interval].append(entry.humidity)
-        gas_dict[interval].append(entry.gaz)
-    
-    # Calculer les valeurs moyennes pour chaque intervalle de 1 heure
-    temperatures = [{'interval': interval.isoformat(), 'temperature': sum(values)/len(values)} for interval, values in temperature_dict.items()]
-    humidity = [{'interval': interval.isoformat(), 'humidity': sum(values)/len(values)} for interval, values in humidity_dict.items()]
-    gas = [{'interval': interval.isoformat(), 'gas': sum(values)/len(values)} for interval, values in gas_dict.items()]
+    # Fallback to the last 24 hours relative to the most recent data point if no recent data exists
+    if not data_entries.exists():
+        last_entry = Data.objects.filter(node=node).order_by('-published_date').first()
+        if last_entry:
+            now = last_entry.published_date
+            start_of_period = now - datetime.timedelta(days=1)
+            data_entries = Data.objects.filter(node=node, published_date__range=(start_of_period, now))
+
+
+    temperatures = [{'interval': entry.published_date.isoformat(), 'temperature': entry.temperature} for entry in data_entries if entry.temperature is not None]
+    humidity = [{'interval': entry.published_date.isoformat(), 'humidity': entry.humidity} for entry in data_entries if entry.humidity is not None]
+    gas = [{'interval': entry.published_date.isoformat(), 'gas': entry.gaz} for entry in data_entries if entry.gaz is not None]
     
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return JsonResponse({

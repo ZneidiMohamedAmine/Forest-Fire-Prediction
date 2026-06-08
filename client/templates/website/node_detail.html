@@ -308,6 +308,7 @@
                                             <p><strong>{% trans "Position:" %}</strong> <span id="nodePosition">{{ node.latitude }}, {{ node.longitude }}</span></p>
                                             <p><strong>{% trans "Sensors:" %}</strong> <span id="nodeSensors">{{ node.sensors }}</span></p>
                                             <p><strong>{% trans "RSSI:" %}</strong> <span id="nodeRSSI">{{ node.RSSI }}</span></p>
+                                            <p><strong>{% trans "Battery:" %}</strong> <span id="nodeBattery">{% if node.Battery_value is not None %}{{ node.Battery_value }}{% else %}N/A{% endif %}</span>%</p>
                                         </div>
                                     </div>
                                 </div> 
@@ -382,6 +383,7 @@
         if (nodeData.device_id) {
             // document.getElementById('nodeReference').innerText  = nodeData.device_id || 'N/A'; // Do NOT overwrite the real reference
             document.getElementById('nodeRSSI').innerText       = nodeData.rssi || 'N/A';
+            document.getElementById('nodeBattery').innerText    = nodeData.battery !== undefined ? nodeData.battery : 'N/A';
             
             // Ajouter les valeurs de température, humidité, pression et gaz
             document.getElementById('temperature').innerText    = nodeData.temperature  || 'N/A';
@@ -402,6 +404,7 @@
             // Only update the UI if the incoming data matches the current node!
             if (nodeData.device_id && currentNodeRef && nodeData.device_id.toLowerCase() === currentNodeRef.toLowerCase()) {
                 document.getElementById('nodeRSSI').innerText       = nodeData.rssi || 'N/A';
+                document.getElementById('nodeBattery').innerText    = nodeData.battery !== undefined ? nodeData.battery : 'N/A';
                 
                 // Mettre à jour les valeurs de température, humidité, pression et gaz
                 document.getElementById('temperature').innerText    = nodeData.temperature  || 'N/A';

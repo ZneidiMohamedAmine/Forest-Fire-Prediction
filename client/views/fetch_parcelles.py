@@ -1,6 +1,8 @@
 from django.shortcuts                   import get_object_or_404
 from django.contrib.auth.decorators     import login_required
 from django.http                        import JsonResponse
+from django.utils                       import timezone
+from datetime                           import timedelta
 from authentication.decorators          import client_required
 from supervisor.models.data             import Data
 from supervisor.models.project          import Project
@@ -24,14 +26,22 @@ def fetch_parcelles_for_project(request):
 
     for parcelle in parcelles:
         nodes = Node.objects.filter(parcelle=parcelle)
-        node_data = [{
-            'id': node.id,
-            'name': node.name,
-            'latitude': node.position.x,  
-            'longitude': node.position.y, 
-            'ref': node.reference, 
-            'last_data': get_last_data(node)
-        } for node in nodes]
+        node_data = []
+        for node in nodes:
+            last_comm = Data.objects.filter(node=node).order_by('-published_date').first()
+            is_online = False
+            if last_comm and last_comm.published_date:
+                is_online = (timezone.now() - last_comm.published_date) < timedelta(minutes=60)
+                
+            node_data.append({
+                'id': node.id,
+                'name': node.name,
+                'latitude': node.position.x,  
+                'longitude': node.position.y, 
+                'ref': node.reference, 
+                'last_data': get_last_data(node),
+                'is_online': is_online
+            })
         
         all_nodes.extend(node_data)
 
@@ -68,6 +78,10 @@ def fetch_parcelles_for_project(request):
             except ValueError:
                 pass
                 
+        is_online = False
+        if latest_detection:
+            is_online = (timezone.now() - latest_detection.detected_at) < timedelta(minutes=60)
+
         camera_data.append({
             'id': c.id,
             'name': c.name,
@@ -76,6 +90,7 @@ def fetch_parcelles_for_project(request):
             'longitude': float(c.longitude) if c.longitude else c.position.x if c.position else 0,
             'has_alert': has_alert or (latest_detection is not None),
             'is_active': c.is_active,
+            'is_online': is_online and c.is_active,
             'latest_alert_image': image_url,
             'latest_alert_time': latest_detection.detected_at.strftime('%Y-%m-%d %H:%M:%S') if latest_detection else None
         })

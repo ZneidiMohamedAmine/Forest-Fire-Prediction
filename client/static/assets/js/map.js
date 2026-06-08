@@ -254,8 +254,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const t = window.MAP_TRANSLATIONS || {};
     return `
             <div class="node-popup">
-                <div class="node-label" style="background-color: ${getColorFromPrediction(nodeData.fwi_predit || 0)};">${t.node || 'Node'}</div><br>
+                <div class="node-label" style="background-color: ${getColorFromPrediction(nodeData.fwi_predit || 0)};">${t.node || 'Node'}</div>
+                <span class="badge ${node.is_online ? 'bg-success' : 'bg-danger'}" style="float:right; color:white; font-size:9px; padding:2px 5px; border-radius:4px;">${node.is_online ? (t.online || 'Online') : (t.offline || 'Offline')}</span><br>
                 <b>${t.name || 'Name'}:</b> ${node.name}<br>
+                <b>${t.status || 'Status'}:</b> <span style="color: ${node.is_online ? 'green' : 'red'}; font-weight: bold;">${node.is_online ? (t.online || 'Online') : (t.offline || 'Offline')}</span><br>
                 <b>${t.parcel_id || 'ID Parcelle'}:</b> ${node.ref}<br>
                 <b>RSSI:</b> ${nodeData.rssi || 'N/A'}<br>
                 <b>FWI:</b> ${nodeData.fwi || 'N/A'}<br>
@@ -287,10 +289,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     return `
             <div class="node-popup">
-                <div class="node-label" style="background-color: ${camera.has_alert ? 'red' : 'green'}; color: white;">${t.camera || 'Camera'}</div><br>
+                <div class="node-label" style="background-color: ${camera.has_alert ? 'red' : 'green'}; color: white;">${t.camera || 'Camera'}</div>
+                <span class="badge ${camera.is_online ? 'bg-success' : 'bg-danger'}" style="float:right; color:white; font-size:9px; padding:2px 5px; border-radius:4px;">${camera.is_online ? (t.online || 'Online') : (t.offline || 'Offline')}</span><br>
                 <b>${t.name || 'Name'}:</b> ${camera.name}<br>
                 <b>${t.camera_id || 'Camera ID'}:</b> ${camera.camera_id}<br>
-                <b>${t.status || 'Status'}:</b> ${camera.is_active ? (t.active || 'Active') : (t.inactive || 'Inactive')}<br>
+                <b>${t.status || 'Status'}:</b> <span style="color: ${camera.is_online ? 'green' : 'red'}; font-weight: bold;">${camera.is_online ? (t.online || 'Online') : (t.offline || 'Offline')}</span><br>
                 <b>${t.prediction_status || 'Prediction Status'}:</b> 
                 <span style="color: ${camera.has_alert ? '#dc3545' : '#28a745'}; font-weight: bold;">
                     ${camera.has_alert ? (t.bad_fire || '🔥 BAD (Fire Detected)') : (t.good_safe || '✅ GOOD (Safe)')}
@@ -307,18 +310,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // --- ADDED: Locate Asset Logic ---
   document.addEventListener('click', function (e) {
-    if (e.target && e.target.classList.contains('locate-btn')) {
-      const lat = parseFloat(e.target.getAttribute('data-lat'));
-      const lng = parseFloat(e.target.getAttribute('data-lng'));
-      const name = e.target.getAttribute('data-name');
+    const btn = e.target.closest('.locate-btn');
+    if (btn) {
+      const lat = parseFloat(btn.getAttribute('data-lat'));
+      const lng = parseFloat(btn.getAttribute('data-lng'));
+      const name = btn.getAttribute('data-name');
+      const ref = btn.getAttribute('data-ref') || name;
 
       if (window.customClientMap && !isNaN(lat) && !isNaN(lng)) {
         window.customClientMap.setView([lat, lng], 17, { animate: true });
         
         // Find marker and open popup
-        const ref = e.target.getAttribute('data-ref') || name;
-        if (window.markers && window.markers[ref]) {
-            window.markers[ref].forEach(m => m.openPopup());
+        if (window.markers) {
+            let targetMarkers = window.markers[ref];
+            
+            // Robustness: Fallback to case-insensitive search if not found
+            if (!targetMarkers && ref) {
+                const lowerRef = ref.toLowerCase();
+                const foundKey = Object.keys(window.markers).find(k => k.toLowerCase() === lowerRef);
+                if (foundKey) targetMarkers = window.markers[foundKey];
+            }
+
+            if (targetMarkers) {
+                targetMarkers.forEach(m => m.openPopup());
+            }
         }
       }
     }

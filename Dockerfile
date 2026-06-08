@@ -25,12 +25,22 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     git \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/* \
     && ln -sf /usr/lib/x86_64-linux-gnu/libgdal.so.36 /usr/lib/libgdal.so
 
+# Récupérer la version GDAL installée (pour GDAL Python)
+RUN gdal-config --version
+
 # Copier requirements et installer
 COPY requirements_linux.txt ./
+
 RUN pip install --upgrade pip
+
+# Installer GDAL Python en fonction de la version système
+RUN pip install GDAL==$(gdal-config --version)
+
+# Installer les autres dépendances (sans GDAL dans le fichier !)
 RUN pip install -r requirements_linux.txt
 
 # Copier le projet
@@ -40,4 +50,4 @@ COPY . .
 EXPOSE 8000
 
 # Commande par défaut pour Channels + Daphne
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "project.asgi:application"]
+CMD ["python", "-m", "daphne", "-b", "0.0.0.0", "-p", "8000", "project.asgi:application"]

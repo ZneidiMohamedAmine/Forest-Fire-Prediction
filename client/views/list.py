@@ -2,6 +2,8 @@ import json
 from django.shortcuts                   import render, get_object_or_404
 from django.contrib.auth.decorators     import login_required
 from authentication.decorators          import client_required
+from django.utils import timezone
+from datetime import timedelta
 from supervisor.models.data             import Data
 from supervisor.models.node             import Node
 from supervisor.models.parcelle         import Parcelle
@@ -18,27 +20,43 @@ def node_list(request, project_id):
 #capteurs لكل parcelle
     for parcelle in parcelles:
         nodes = Node.objects.filter(parcelle=parcelle)
-        node_data = [{
-            'id': node.id,
-            'name': node.name,
-            'latitude': node.position.x,  
-            'longitude': node.position.y, 
-            'ref': node.reference,
-            'last_data': get_last_data(node)
-        } for node in nodes]
+        node_data = []
+        for node in nodes:
+            last_communication = Data.objects.filter(node=node).order_by('-published_date').first()
+            is_online = False
+            if last_communication and last_communication.published_date:
+                is_online = (timezone.now() - last_communication.published_date) < timedelta(minutes=60)
+            
+            node_data.append({
+                'id': node.id,
+                'name': node.name,
+                'latitude': node.position.x,  
+                'longitude': node.position.y, 
+                'ref': node.reference,
+                'last_data': get_last_data(node),
+                'is_online': is_online
+            })
         all_nodes.extend(node_data)
 
     # Fetch Cameras for the project
     cameras = Camera.objects.filter(project=project)
-    all_cameras = [{
-        'id': c.id,
-        'name': c.name,
-        'camera_id': c.camera_id,
-        'latitude': float(c.latitude) if c.latitude else (c.position.y if c.position else 0),
-        'longitude': float(c.longitude) if c.longitude else (c.position.x if c.position else 0),
-        'has_alert': hasattr(c, 'detection'),
-        'is_active': c.is_active
-    } for c in cameras]
+    all_cameras = []
+    for c in cameras:
+        latest_detection = c.detections.order_by('-detected_at').first()
+        is_online = False
+        if latest_detection:
+            is_online = (timezone.now() - latest_detection.detected_at) < timedelta(minutes=60)
+            
+        all_cameras.append({
+            'id': c.id,
+            'name': c.name,
+            'camera_id': c.camera_id,
+            'latitude': float(c.latitude) if c.latitude else (c.position.y if c.position else 0),
+            'longitude': float(c.longitude) if c.longitude else (c.position.x if c.position else 0),
+            'has_alert': hasattr(c, 'detection'),
+            'is_active': c.is_active,
+            'is_online': is_online and c.is_active
+        })
 
     #* Vérifiez que le JSON est bien formé et non vide
     json_data = json.dumps(all_nodes, default=str)

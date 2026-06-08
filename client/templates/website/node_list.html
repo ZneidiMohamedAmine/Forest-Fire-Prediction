@@ -234,9 +234,10 @@
                                         <p>ID Parcelle:</p>
                                         <p>{{ node.reference }}</p>
                                         <p>Node ID: {{ node.id }}</p>
+                                        <p>Status: <span class="badge {% if node.is_online %}bg-success{% else %}bg-danger{% endif %}">{{ node.is_online|yesno:"Active,Inactive"|capfirst }}</span></p>
                                         <div class="d-flex justify-content-between">
                                             {% localize off %}
-                                            <button class="btn btn-success custom-btn locate-btn" data-lat="{{ node.latitude }}" data-lng="{{ node.longitude }}" data-name="{{ node.name }}" data-ref="{{ node.reference }}">{% trans "Locate" %}</button>
+                                            <button class="btn btn-success custom-btn locate-btn" data-lat="{{ node.latitude }}" data-lng="{{ node.longitude }}" data-name="{{ node.name }}" data-ref="{{ node.ref }}">{% trans "Locate" %}</button>
                                             {% endlocalize %}
                                             <a href="{% url 'node_detail' project_id=project.polygon_id node_id=node.id %}">
                                                 <button class="btn btn-success custom-btn ms-2">{% trans "Details" %}</button>
@@ -260,7 +261,7 @@
                                         </div>
                                         <h5 class="card-title">{{ camera.name }}</h5>
                                         <p>Camera ID: {{ camera.camera_id }}</p>
-                                        <p>Status: <span class="badge {% if camera.is_active %}bg-success{% else %}bg-danger{% endif %}">{{ camera.is_active|yesno:"Active,Inactive" }}</span></p>
+                                        <p>Status: <span class="badge {% if camera.is_online %}bg-success{% else %}bg-danger{% endif %}">{{ camera.is_online|yesno:"Active,Inactive"|capfirst }}</span></p>
                                         <div class="d-flex justify-content-between mt-3">
                                             {% localize off %}
                                             <button class="btn btn-warning custom-btn locate-btn" style="--btn-bg-color: #fd7e14; --btn-hover-bg-color: #e8590c;" data-lat="{{ camera.latitude }}" data-lng="{{ camera.longitude }}" data-name="{{ camera.name }}">{% trans "Locate" %}</button>
