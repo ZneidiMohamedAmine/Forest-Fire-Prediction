@@ -1,53 +1,59 @@
-# Base Python
-FROM python:3.9-slim
+FROM python:3.9-slim-bookworm AS builder
 
-# Variables d'environnement
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV DEBIAN_FRONTEND=noninteractive
-ENV IN_DOCKER=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    CPLUS_INCLUDE_PATH=/usr/include/gdal \
+    C_INCLUDE_PATH=/usr/include/gdal
 
-# Variables pour GDAL
-ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
-ENV C_INCLUDE_PATH=/usr/include/gdal
-ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
-ENV GDAL_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgdal.so.36
+WORKDIR /build
 
-# Répertoire de travail
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        gcc \
+        g++ \
+        gdal-bin \
+        libgdal-dev \
+        libgeos-dev \
+        libproj-dev \
+        libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+
+RUN python -m pip install --upgrade pip setuptools wheel \
+    && grep -v "^twisted-iocpsupport==" requirements.txt > requirements-linux.txt \
+    && python -m pip install --prefix=/install "GDAL==$(gdal-config --version)" \
+    && python -m pip install --prefix=/install -r requirements-linux.txt
+
+
+FROM python:3.9-slim-bookworm AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    IN_DOCKER=1 \
+    GDAL_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgdal.so.32
+
 WORKDIR /app
 
-# Installer dépendances système
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    gdal-bin \
-    libgdal-dev \
-    libproj-dev \
-    gcc \
-    g++ \
-    git \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/* \
-    && ln -sf /usr/lib/x86_64-linux-gnu/libgdal.so.36 /usr/lib/libgdal.so
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libgdal32 \
+        libgeos-c1v5 \
+        libproj25 \
+        libpq5 \
+        netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
 
-# Récupérer la version GDAL installée (pour GDAL Python)
-RUN gdal-config --version
-
-# Copier requirements et installer
-COPY requirements_linux.txt ./
-
-RUN pip install --upgrade pip
-
-# Installer GDAL Python en fonction de la version système
-RUN pip install GDAL==$(gdal-config --version)
-
-# Installer les autres dépendances (sans GDAL dans le fichier !)
-RUN pip install -r requirements_linux.txt
-
-# Copier le projet
+COPY --from=builder /install /usr/local
 COPY . .
 
-# Exposer le port pour Django
+RUN mkdir -p /app/logs /app/staticfiles /app/img
+
 EXPOSE 8000
 
-# Commande par défaut pour Channels + Daphne
-CMD ["python", "-m", "daphne", "-b", "0.0.0.0", "-p", "8000", "project.asgi:application"]
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "project.asgi:application"]
