@@ -80,3 +80,7 @@ def send_camera_alert(detection_id: int):
             recipients,
             fail_silently=True,
         )
+
+    # ── 4. Mobile app notification for the project client ────────────────────
+    from client.notifications import notify_client_for_detection
+    notify_client_for_detection(detection)
