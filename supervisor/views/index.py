@@ -2,11 +2,12 @@ from django.shortcuts               import render
 from django.contrib.auth.decorators import login_required
 from authentication.decorators      import supervisor_required
 from django.http                    import JsonResponse
+from django.db.models               import Prefetch
 from supervisor.models.project      import Project
 from supervisor.models.parcelle     import Parcelle
 from supervisor.models.node         import Node
 from supervisor.models.data         import Data
-from camera_management.models       import Camera
+from camera_management.models       import Camera, Detection
 
 @login_required(login_url='supervisor_login')
 @supervisor_required
@@ -25,14 +26,33 @@ def index(request):
 @login_required(login_url='supervisor_login')
 @supervisor_required
 def get_all_assets(request):
-    projects = Project.objects.all()
+    projects = Project.objects.prefetch_related(
+        Prefetch(
+            'parcelle_set',
+            queryset=Parcelle.objects.prefetch_related(
+                Prefetch(
+                    'nodes',
+                    queryset=Node.objects.prefetch_related(
+                        Prefetch('datas', queryset=Data.objects.order_by('-published_date'), to_attr='latest_datas')
+                    ),
+                ),
+                Prefetch(
+                    'cameras',
+                    queryset=Camera.objects.prefetch_related(
+                        Prefetch('detections', queryset=Detection.objects.order_by('-detected_at'), to_attr='latest_detections')
+                    ),
+                ),
+            ),
+            to_attr='prefetched_parcelles',
+        )
+    )
     data = []
     
     for project in projects:
         parcelles_data = []
-        parcelles = Parcelle.objects.filter(project=project)
+        parcelles = project.prefetched_parcelles
         for parcelle in parcelles:
-            nodes = Node.objects.filter(parcelle=parcelle)
+            nodes = parcelle.nodes.all()
             node_data = [{
                 'id': node.id,
                 'name': node.name,
@@ -42,10 +62,10 @@ def get_all_assets(request):
                 'last_data': get_last_data(node)
             } for node in nodes]
 
-            cameras = Camera.objects.filter(parcelle=parcelle)
+            cameras = parcelle.cameras.all()
             camera_data = []
             for cam in cameras:
-                latest_detection = cam.detections.order_by('-detected_at').first()
+                latest_detection = cam.latest_detections[0] if cam.latest_detections else None
                 image_url = None
                 if latest_detection and latest_detection.image:
                     try:
@@ -83,7 +103,13 @@ def get_all_assets(request):
 
 def get_last_data(node):
     try:
-        last_data = Data.objects.filter(node=node).latest('published_date')
+        prefetched = getattr(node, 'latest_datas', None)
+        if prefetched is not None:
+            if not prefetched:
+                return {}
+            last_data = prefetched[0]
+        else:
+            last_data = Data.objects.filter(node=node).latest('published_date')
         return {
             'temperature': last_data.temperature,
             'humidity': last_data.humidity,

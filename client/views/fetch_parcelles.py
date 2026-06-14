@@ -2,13 +2,14 @@ from django.shortcuts                   import get_object_or_404
 from django.contrib.auth.decorators     import login_required
 from django.http                        import JsonResponse
 from django.utils                       import timezone
+from django.db.models                   import Prefetch
 from datetime                           import timedelta
 from authentication.decorators          import client_required
 from supervisor.models.data             import Data
 from supervisor.models.project          import Project
 from supervisor.models.parcelle         import Parcelle
 from supervisor.models.node             import Node
-from camera_management.models          import Camera
+from camera_management.models          import Camera, Detection
 
 
 
@@ -20,15 +21,22 @@ def fetch_parcelles_for_project(request):
         return JsonResponse({'error': 'No project ID provided.'}, status=400)
 
     project = get_object_or_404(Project, polygon_id=project_id, client=request.user.client)
-    parcelles = Parcelle.objects.filter(project=project)
+    parcelles = Parcelle.objects.filter(project=project).prefetch_related(
+        Prefetch(
+            'nodes',
+            queryset=Node.objects.prefetch_related(
+                Prefetch('datas', queryset=Data.objects.order_by('-published_date'), to_attr='latest_datas')
+            ),
+        )
+    )
     parcelle_data = []
     all_nodes = []
 
     for parcelle in parcelles:
-        nodes = Node.objects.filter(parcelle=parcelle)
+        nodes = parcelle.nodes.all()
         node_data = []
         for node in nodes:
-            last_comm = Data.objects.filter(node=node).order_by('-published_date').first()
+            last_comm = node.latest_datas[0] if node.latest_datas else None
             is_online = False
             if last_comm and last_comm.published_date:
                 is_online = (timezone.now() - last_comm.published_date) < timedelta(minutes=60)
@@ -59,7 +67,9 @@ def fetch_parcelles_for_project(request):
     }
     
     # Fetch Cameras for the project
-    cameras = Camera.objects.filter(project=project)
+    cameras = Camera.objects.filter(project=project).prefetch_related(
+        Prefetch('detections', queryset=Detection.objects.order_by('-detected_at'), to_attr='latest_detections')
+    )
     camera_data = []
     for c in cameras:
         has_alert = False
@@ -70,7 +80,7 @@ def fetch_parcelles_for_project(request):
         except Exception:
             pass
             
-        latest_detection = c.detections.order_by('-detected_at').first()
+        latest_detection = c.latest_detections[0] if c.latest_detections else None
         image_url = None
         if latest_detection and latest_detection.image:
             try:
@@ -105,7 +115,13 @@ def fetch_parcelles_for_project(request):
 
 def get_last_data(node):
     try:
-        last_data = Data.objects.filter(node=node).latest('published_date')
+        prefetched = getattr(node, 'latest_datas', None)
+        if prefetched is not None:
+            if not prefetched:
+                return {}
+            last_data = prefetched[0]
+        else:
+            last_data = Data.objects.filter(node=node).latest('published_date')
         return {
             'temperature': last_data.temperature,
             'humidity': last_data.humidity,
