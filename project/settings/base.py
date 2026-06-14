@@ -3,7 +3,17 @@ from pathlib import Path
 from celery.schedules import crontab
 from django.core.exceptions import ImproperlyConfigured
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+CONFIG_ENV_PATH = BASE_DIR / "config.env"
+if CONFIG_ENV_PATH.exists():
+    with CONFIG_ENV_PATH.open() as env_file:
+        for line in env_file:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ[key.strip()] = value.strip()
 
 def get_env_variable(var_name, default=None, required=False):
     """Safely get environment variable, with optional requirement."""
@@ -134,10 +144,6 @@ LOGGING = {
             'format': '[{levelname}] {asctime} {name} {funcName}:{lineno} - {message}',
             'style': '{',
             'datefmt': '%Y-%m-%d %H:%M:%S',
-        },
-        'json': {
-            '()': 'pythonjsonlogger.jsonlogger.JsonFormatter',
-            'format': '%(asctime)s %(name)s %(levelname)s %(message)s',
         },
     },
     'handlers': {
