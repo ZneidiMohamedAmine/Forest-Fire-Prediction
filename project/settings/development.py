@@ -27,11 +27,6 @@ DATABASES = {
     }
 }
 
-REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
-REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
-REDIS_DB_CHANNELS = 1
-REDIS_DB_CELERY = 1
-
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
@@ -43,9 +38,10 @@ CHANNEL_LAYERS = {
 
 CELERY_BROKER_URL = os.environ.get(
     'CELERY_BROKER_URL',
-    f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB_CELERY}'
+    f'redis://{REDIS_HOST}:{REDIS_PORT}/0'
 )
 CELERY_RESULT_BACKEND = os.environ.get(
     'CELERY_RESULT_BACKEND',
-    f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB_CELERY}'
+    f'redis://{REDIS_HOST}:{REDIS_PORT}/0'
 )
+
