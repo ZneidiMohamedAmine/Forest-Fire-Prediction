@@ -40,7 +40,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_RETRIES=10 \
     DEBIAN_FRONTEND=noninteractive \
     IN_DOCKER=1 \
-    GDAL_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgdal.so.32
+    GDAL_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgdal.so.32 \
+    PATH="/usr/local/bin:$PATH"
 
 WORKDIR /app
 
@@ -61,4 +62,4 @@ RUN mkdir -p /app/logs /app/staticfiles /app/img
 
 EXPOSE 8000
 
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "project.asgi:application"]
+CMD ["/usr/local/bin/daphne", "-b", "0.0.0.0", "-p", "8000", "project.asgi:application"]
