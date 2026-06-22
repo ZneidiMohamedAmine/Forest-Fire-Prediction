@@ -1,0 +1,47 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.9-alpine
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install system packages
+        run: |
+          apk add --no-cache \
+            build-base \
+            gdal-dev \
+            geos-dev \
+            postgresql-dev \
+            proj-dev
+
+      - name: Install Python test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            Django==4.2.11 \
+            pytest==8.4.2 \
+            pytest-django==4.11.1 \
+            daphne==4.1.2 \
+            channels==4.3.1 \
+            channels-redis==4.3.0 \
+            django-location-field==2.7.3 \
+            django-redis==5.4.0 \
+            psycopg2-binary==2.9.9 \
+            redis==6.2.0 \
+            whitenoise==6.6.0 \
+            pillow==10.3.0
+
+      - name: Run tests
+        env:
+          DJANGO_SETTINGS_MODULE: project.settings.development
+          GDAL_LIBRARY_PATH: /usr/lib/libgdal.so
+        run: pytest tests/test_health.py

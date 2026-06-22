@@ -3,14 +3,16 @@ FROM python:3.9-slim-bookworm AS builder
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    PIP_DEFAULT_TIMEOUT=300 \
+    PIP_RETRIES=10 \
     DEBIAN_FRONTEND=noninteractive \
     CPLUS_INCLUDE_PATH=/usr/include/gdal \
     C_INCLUDE_PATH=/usr/include/gdal
 
 WORKDIR /build
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
+RUN apt-get -o Acquire::Retries=10 -o Acquire::http::Timeout=300 -o Acquire::https::Timeout=300 update \
+    && apt-get -o Acquire::Retries=10 -o Acquire::http::Timeout=300 -o Acquire::https::Timeout=300 install -y --no-install-recommends \
         build-essential \
         gcc \
         g++ \
@@ -24,9 +26,9 @@ RUN apt-get update \
 COPY requirements.txt .
 
 RUN python -m pip install --upgrade pip setuptools wheel \
-    && grep -v "^twisted-iocpsupport==" requirements.txt > requirements-linux.txt \
+    && grep -Ev "^(twisted-iocpsupport|psycopg2)==" requirements.txt > requirements-linux.txt \
     && python -m pip install --prefix=/install "GDAL==$(gdal-config --version)" \
-    && python -m pip install --prefix=/install -r requirements-linux.txt
+    && python -m pip install --prefer-binary --prefix=/install -r requirements-linux.txt
 
 
 FROM python:3.9-slim-bookworm AS runtime
@@ -34,17 +36,20 @@ FROM python:3.9-slim-bookworm AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    PIP_DEFAULT_TIMEOUT=300 \
+    PIP_RETRIES=10 \
     DEBIAN_FRONTEND=noninteractive \
     IN_DOCKER=1 \
     GDAL_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgdal.so.32
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
+RUN apt-get -o Acquire::Retries=10 -o Acquire::http::Timeout=300 -o Acquire::https::Timeout=300 update \
+    && apt-get -o Acquire::Retries=10 -o Acquire::http::Timeout=300 -o Acquire::https::Timeout=300 install -y --no-install-recommends \
         libgdal32 \
         libgeos-c1v5 \
         libproj25 \
+        libgomp1 \
         libpq5 \
         netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
