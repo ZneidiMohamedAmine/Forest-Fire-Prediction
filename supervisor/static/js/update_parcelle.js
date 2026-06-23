@@ -37,7 +37,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const map = window.customMap = L.map(mapElement).setView([latitude, longitude], 15); // Center on project coordinates
 
-                L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_satellite/{z}/{x}/{y}{r}.jpg?api_key=1f18db9b-4249-4473-87c0-eb280f40f55c', {}).addTo(map);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(map);
 
                 fetch(`/dashboard_super/get_parcelles_with_nodes_for_project/?project_id=${projectId}`)
                     .then(response => response.json())
